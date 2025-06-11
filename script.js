@@ -163,7 +163,7 @@ function shuffleArray(arr) {
 function updateProgress() {
   const progressPercent = ((currentQuestion) / questions.length) * 100;
   document.getElementById('progressBar').style.width = `${progressPercent}%`;
-  document.getElementById('progressText').textContent = `Question ${currentQuestion + 1}`;
+  document.getElementById('progressText').textContent = `Question ${currentQuestion + 1} of ${questions.length}`;
 }
 
 function loadQuestion() {
