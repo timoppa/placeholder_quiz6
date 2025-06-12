@@ -151,42 +151,48 @@ nextBtn.addEventListener("click", () => {
   if (!showingFeedback) {
     if (selectedInputs.length === 0) return alert("Please select at least one option.");
 
+    // Normalization function
+    function normalize(str) {
+      return str
+        .replace(/\s+/g, ' ')          // collapse all whitespace
+        .replace(/\s*\\\s*/g, ' \\ ')  // consistent spacing for backslashes
+        .trim();
+    }
+
     const selectedValues = selectedInputs.map(input => normalize(input.value));
-    const isCorrect = correctAnswers.length === selectedValues.length &&
-      correctAnswers.every(ans => selectedValues.some(sel => normalize(sel) === normalize(ans)));
+    const normalizedCorrectAnswers = correctAnswers.map(ans => normalize(ans));
 
-    
+    const isCorrect =
+      selectedValues.length === normalizedCorrectAnswers.length &&
+      normalizedCorrectAnswers.every(ans => selectedValues.includes(ans));
 
-    // Disable all inputs
+    // Disable inputs
     document.querySelectorAll("input[name='option']").forEach(input => input.disabled = true);
 
-    // Highlight correct and incorrect
+    // Highlight correct and incorrect answers
     document.querySelectorAll("input[name='option']").forEach(input => {
       const parentLabel = input.parentElement;
-      const inputValue = normalize(input.value);
-    
-      if (correctAnswers.some(ans => normalize(ans) === inputValue)) {
+      const normalizedInput = normalize(input.value);
+
+      if (normalizedCorrectAnswers.includes(normalizedInput)) {
         parentLabel.classList.add("correct");
       }
-    
-      if (input.checked && !correctAnswers.some(ans => normalize(ans) === inputValue)) {
+      if (input.checked && !normalizedCorrectAnswers.includes(normalizedInput)) {
         parentLabel.classList.add("incorrect");
       }
     });
 
-
-    // Feedback
+    // Show feedback
     if (isCorrect) {
       score++;
       resultEl.innerHTML = `<p style="color: green;">✅ Correct!</p>`;
     } else {
       resultEl.innerHTML = `<p style="color: red;">❌ Incorrect.</p>
-                            <p>Correct Answer: <strong>${correctAnswers.join(", ")}</strong></p>`;
+        <p>Correct Answer: <strong>${correctAnswers.join(", ")}</strong></p>`;
     }
 
     nextBtn.textContent = currentQuestion < questions.length - 1 ? "Next Question" : "See Result";
     showingFeedback = true;
-
   } else {
     currentQuestion++;
     if (currentQuestion < questions.length) {
@@ -196,6 +202,7 @@ nextBtn.addEventListener("click", () => {
     }
   }
 });
+
 
 function formatDuration(seconds) {
   const h = Math.floor(seconds / 3600);
