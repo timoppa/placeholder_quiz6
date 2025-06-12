@@ -1,333 +1,218 @@
 const questions = [
   {
-    "question": "Question\nFor this question, refer to the Helicopter Racing League (HRL) case study. Recently HRL started a new regional racing league in Cape Town, South Africa. In an effort to give customers in Cape Town a better user experience, HRL has partnered with the Content Delivery Network provider, Fastly. HRL needs to allow traffic coming from all of the Fastly IP address ranges into their Virtual Private Cloud network (VPC network). You are a member of the HRL security team and you need to configure the update that will allow only the Fastly IP address ranges through the External HTTP(S) load balancer. Which command should you use?",
-    "options": [
-      "gcloud compute security-policies rules update 1000 \\\n-- security-policy from-fastly \\ \n-- src-ip-ranges * \\\n-- action \"allow\"",
-      "gcloud firewall rules update sourceiplist-fastly \\\n-- priority 1000 \\ \n-- allow tcp:443",
-      "gcloud firewall rules update hlr-policies \\\n-- priority 1000 \\ \n-- target-tags=sourceiplist-fastly \\\n-- allow tcp:443",
-      "gcloud compute security-policies rules update 1000 \\\n-- security-policy hlr-policy \\ \n-- expression \"evaluatePreconfiguredExpr ('sourceiplist-fastly')\" \\\n-- action \"allow\""
+    question: `For this question, refer to the Helicopter Racing League (HRL) case study. Recently HRL started a new regional racing league in Cape Town, South Africa. In an effort to give customers in Cape Town a better user experience, HRL has partnered with the Content Delivery Network provider, Fastly. HRL needs to allow traffic coming from all of the Fastly IP address ranges into their Virtual Private Cloud network (VPC network). You are a member of the HRL security team and you need to configure the update that will allow only the Fastly IP address ranges through the External HTTP(S) load balancer. Which command should you use?`,
+    options: [
+      `gcloud compute security-policies rules update 1000 \
+--security-policy from-fastly \
+--src-ip-ranges * \
+--action "allow"`,
+      `gcloud firewall rules update sourceiplist-fastly \
+--priority 1000 \
+--allow tcp:443`,
+      `gcloud firewall rules update hlr-policies \
+--priority 1000 \
+--target-tags=sourceiplist-fastly \
+--allow tcp:443`,
+      `gcloud compute security-policies rules update 1000 \
+--security-policy hlr-policy \
+--expression "evaluatePreconfiguredExpr('sourceiplist-fastly')" \
+--action "allow"`
     ],
-    "answer": [
-      "gcloud compute security-policies rules update 1000 \\\n-- security-policy from-fastly \\ \n-- src-ip-ranges * \\\n-- action \"allow\""
+    answer: [
+      `gcloud compute security-policies rules update 1000 \
+--security-policy from-fastly \
+--src-ip-ranges * \
+--action "allow"`
     ],
-    "multiple": false
-  },
+    multiple: false
+  }
 ];
 
+// Shuffle questions on load
 questions.sort(() => Math.random() - 0.5);
 
-
+// ─── State ───────────────────────────────────────────────────────────────────
 let currentQuestion = 0;
 let score = 0;
 let showingFeedback = false;
-let quizStartTime = new Date();
+const quizStartTime = new Date();
 
-const questionEl = document.getElementById("question");
-const optionsEl = document.getElementById("options");
-const nextBtn = document.getElementById("nextBtn");
-const resultEl = document.getElementById("result");
-const finishBtn = document.getElementById('finishTestBtn');
+// ─── DOM References ──────────────────────────────────────────────────────────
+const questionEl = document.getElementById('question');
+const optionsEl  = document.getElementById('options');
+const nextBtn    = document.getElementById('nextBtn');
+const resultEl   = document.getElementById('result');
+const finishBtn  = document.getElementById('finishTestBtn');
+const timerEl    = document.getElementById('timer');
 
-
-
-
-
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function normalize(str) {
+  return str
+    .replace(/\s+/g, ' ')
+    .replace(/\s*\\\s*/g, ' \\ ')
+    .trim();
+}
 
 function shuffleArray(arr) {
   return arr.sort(() => Math.random() - 0.5);
 }
 
 function updateProgress() {
-  const progressPercent = ((currentQuestion) / questions.length) * 100;
-  document.getElementById('progressBar').style.width = `${progressPercent}%`;
+  const pct = (currentQuestion / questions.length) * 100;
+  document.getElementById('progressBar').style.width = `${pct}%`;
   document.getElementById('progressText').textContent = `Question ${currentQuestion + 1} of ${questions.length}`;
 }
 
+// ─── Load & Render ──────────────────────────────────────────────────────────
 function loadQuestion() {
+  showingFeedback = false;
+  resultEl.innerHTML = '';
+  nextBtn.textContent = 'Submit';
+
   const q = questions[currentQuestion];
   questionEl.textContent = q.question;
-  optionsEl.innerHTML = "";
+  optionsEl.innerHTML = '';
 
-  const shuffledOptions = shuffleArray([...q.options]);
-  
-  const inputType = q.multiple ? "checkbox" : "radio";
+  const shuffled = shuffleArray([...q.options]);
+  const type = q.multiple ? 'checkbox' : 'radio';
 
-    shuffledOptions.forEach(option => {
-      const li = document.createElement("li");
-      li.innerHTML = `
-        <label class="option">
-          <input type="${inputType}" name="option" value="${option}">
-          <span>${option}</span>
-        </label>`;
-      optionsEl.appendChild(li);
-    });
+  shuffled.forEach(opt => {
+    const li    = document.createElement('li');
+    const label = document.createElement('label');
+    label.className = 'option';
 
-  // ✅ Now add the `.selected` logic AFTER options are rendered
-  optionsEl.querySelectorAll("input[type='radio']").forEach(input => {
+    const input = document.createElement('input');
+    input.type  = type;
+    input.name  = 'option';
+    input.value = opt;
+
+    const span = document.createElement('span');
+    span.textContent = opt;
+
     input.addEventListener('change', () => {
-      document.querySelectorAll('.option').forEach(opt => opt.classList.remove('selected'));
-      input.parentElement.classList.add('selected');
+      document.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
+      label.classList.add('selected');
     });
+
+    label.append(input, span);
+    li.appendChild(label);
+    optionsEl.appendChild(li);
   });
 
-  resultEl.innerHTML = "";
-  nextBtn.textContent = "Submit";
-  showingFeedback = false;
   updateProgress();
-
-  if (currentQuestion === questions.length - 1) {
-    finishBtn.style.display = "block";
-  } else {
-    finishBtn.style.display = "none";
-  }
-
-    if (currentQuestion >= 1) {
-      finishBtn.style.display = "block";
-    } else {
-      finishBtn.style.display = "none";
-    }
+  finishBtn.style.display = currentQuestion >= questions.length - 1 ? 'block' : 'none';
 }
 
+// ─── Timer ──────────────────────────────────────────────────────────────────
+let totalTime = 90 * 60;
+let countdown;
 
-let totalTimeInSeconds = 90 * 60; // 1 hour 30 minutes = 5400 seconds
-const timerEl = document.getElementById("timer");
-
-function updateTimerDisplay() {
-  const hours = Math.floor(totalTimeInSeconds / 3600);
-  const minutes = Math.floor((totalTimeInSeconds % 3600) / 60);
-  const seconds = totalTimeInSeconds % 60;
-
-  let timeParts = [];
-
-  if (hours > 0) timeParts.push(`${hours} hour${hours !== 1 ? 's' : ''}`);
-  if (minutes > 0 || hours > 0) timeParts.push(`${minutes} min${minutes !== 1 ? 's' : ''}`);
-  timeParts.push(`${seconds} second${seconds !== 1 ? 's' : ''}`);
-
-  timerEl.textContent = `Time Remaining: ${timeParts.join(', ')}`;
-}
-
-
-function startTimer() {
-  countdownInterval = setInterval(() => {
-    totalTimeInSeconds--;
-    updateTimerDisplay();
-
-    if (totalTimeInSeconds <= 0) {
-      clearInterval(countdownInterval);
-      alert("Time's up! Submitting your quiz.");
-      showResult();
-    }
-  }, 1000);
-}
-
-
-
-let countdownInterval = setInterval(() => {
-  totalTimeInSeconds--;
-  updateTimerDisplay();
-
-  if (totalTimeInSeconds <= 0) {
-    clearInterval(countdownInterval);
-    alert("Time's up! Submitting your quiz.");
-    showResult();
-  }
-}, 1000);
-
-updateTimerDisplay(); // show initial value
-
-
-function normalize(str) {
-  return str
-    .replace(/\s+/g, ' ')         // convert multiple spaces/newlines/tabs to one space
-    .replace(/\s*\\\s*/g, ' \\ ') // ensure spacing around backslashes is consistent
-    .trim();                      // remove leading/trailing whitespace
-}
-
-nextBtn.addEventListener("click", () => {
-  const currentQ = questions[currentQuestion];
-  const selectedInputs = Array.from(document.querySelectorAll("input[name='option']:checked"));
-  const correctAnswers = currentQ.answer;
-
-  if (!showingFeedback) {
-    if (selectedInputs.length === 0) return alert("Please select at least one option.");
-
-    // Normalization function
-    function normalize(str) {
-      return str
-        .replace(/\s+/g, ' ')          // collapse all whitespace
-        .replace(/\s*\\\s*/g, ' \\ ')  // consistent spacing for backslashes
-        .trim();
-    }
-
-    const selectedValues = selectedInputs.map(input => normalize(input.value));
-    const normalizedCorrectAnswers = correctAnswers.map(ans => normalize(ans));
-
-    const isCorrect =
-      selectedValues.length === normalizedCorrectAnswers.length &&
-      normalizedCorrectAnswers.every(ans => selectedValues.includes(ans));
-
-    // Disable inputs
-    document.querySelectorAll("input[name='option']").forEach(input => input.disabled = true);
-
-    // Highlight correct and incorrect answers
-    document.querySelectorAll("input[name='option']").forEach(input => {
-      const parentLabel = input.parentElement;
-      const normalizedInput = normalize(input.value);
-    
-      if (normalizedCorrectAnswers.includes(normalizedInput)) {
-        parentLabel.classList.add("correct");
-      }
-      if (input.checked && !normalizedCorrectAnswers.includes(normalizedInput)) {
-        parentLabel.classList.add("incorrect");
-      }
-    });
-
-
-    // Show feedback
-    if (isCorrect) {
-      score++;
-      resultEl.innerHTML = `<p style="color: green;">✅ Correct!</p>`;
-    } else {
-      resultEl.innerHTML = `<p style="color: red;">❌ Incorrect.</p>
-        <p>Correct Answer: <strong>${correctAnswers.join(", ")}</strong></p>`;
-    }
-
-    nextBtn.textContent = currentQuestion < questions.length - 1 ? "Next Question" : "See Result";
-    showingFeedback = true;
-  } else {
-    currentQuestion++;
-    if (currentQuestion < questions.length) {
-      loadQuestion();
-    } else {
-      showResult();
-    }
-  }
-});
-
-
-function formatDuration(seconds) {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
-
+function formatTime(sec) {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
   const parts = [];
-  if (h > 0) parts.push(`${h}h`);
-  if (m > 0 || h > 0) parts.push(`${m}m`);
+  if (h) parts.push(`${h}h`);
+  if (m || h) parts.push(`${m}m`);
   parts.push(`${s}s`);
-
   return parts.join(' ');
 }
 
-
-// Save score to history in localStorage
-function saveScoreToHistory(score, total) {
-  const endTime = new Date();
-  const durationInSeconds = Math.floor((endTime - quizStartTime) / 1000);
-  const duration = formatDuration(durationInSeconds);
-
-  const scoreRecord = {
-    score,
-    total,
-    date: endTime.toLocaleString(),
-    duration
-  };
-
-  let history = JSON.parse(localStorage.getItem('quizScoreHistory')) || [];
-  history.push(scoreRecord);
-  localStorage.setItem('quizScoreHistory', JSON.stringify(history));
+function updateTimer() {
+  timerEl.textContent = `Time Remaining: ${formatTime(totalTime--)}`;
+  if (totalTime < 0) {
+    clearInterval(countdown);
+    alert("Time's up! Submitting your quiz.");
+    showResult();
+  }
 }
 
-// Show full history above quiz
-function displayScoreHistory() {
-  const container = document.querySelector(".container");
-  let history = JSON.parse(localStorage.getItem('quizScoreHistory')) || [];
-
-  // Remove existing history display if any
-  const existingHistory = document.getElementById('scoreHistory');
-  if (existingHistory) existingHistory.remove();
-
-  if (history.length === 0) return;
-
-  // Create history table
-  const historyDiv = document.createElement('div');
-  historyDiv.id = 'scoreHistory';
-  historyDiv.innerHTML = `
-    <h3>Score History</h3>
-    <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%;">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Score</th>
-          <th>Time Taken</th>
-          <th>Date</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${history.map((item, idx) => `
-          <tr>
-            <td>${idx + 1}</td>
-            <td>${item.score} / ${item.total}</td>
-            <td>${item.duration || '-'}</td>
-            <td>${item.date}</td>
-          </tr>`).join('')}
-      </tbody>
-    </table>
-    <button id="clearHistoryBtn" style="margin-top: 10px;">Clear History</button>
-    <hr>
-  `;
-
-  container.insertBefore(historyDiv, document.getElementById("quiz"));
-
-  // Add clear history button event listener
-  document.getElementById('clearHistoryBtn').addEventListener('click', () => {
-    if (confirm("Are you sure you want to clear your score history?")) {
-      localStorage.removeItem('quizScoreHistory');
-      displayScoreHistory(); // Remove history display
-    }
-  });
+function startTimer() {
+  updateTimer();
+  countdown = setInterval(updateTimer, 1000);
 }
 
-// Updated showResult to save score and show history
+// ─── Submission & Feedback ─────────────────────────────────────────────────
+nextBtn.addEventListener('click', () => {
+  const q = questions[currentQuestion];
+  const checked = Array.from(optionsEl.querySelectorAll('input[name="option"]:checked'));
+  if (!showingFeedback) {
+    if (!checked.length) return alert('Please select at least one option.');
+
+    const user = checked.map(i => normalize(i.value));
+    const correct = q.answer.map(a => normalize(a));
+
+    optionsEl.querySelectorAll('input').forEach(i => i.disabled = true);
+    optionsEl.querySelectorAll('input').forEach(i => {
+      const val = normalize(i.value);
+      const lbl = i.parentElement;
+      if (correct.includes(val)) lbl.classList.add('correct');
+      if (i.checked && !correct.includes(val)) lbl.classList.add('incorrect');
+    });
+
+    const right = user.length === correct.length && correct.every(a => user.includes(a));
+
+    resultEl.innerHTML = right
+      ? `<p style="color:green;">✅ Correct!</p>`
+      : `<p style="color:red;">❌ Incorrect.</p><p>Correct: <strong>${q.answer.join("\n")}</strong></p>`;
+
+    showingFeedback = true;
+    nextBtn.textContent = currentQuestion < questions.length - 1 ? 'Next Question' : 'See Result';
+  } else {
+    currentQuestion++;
+    if (currentQuestion < questions.length) loadQuestion();
+    else showResult();
+  }
+});
+
+// ─── Final Result ────────────────────────────────────────────────────────────
+function formatDuration(sec) {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  const parts = [];
+  if (h) parts.push(`${h}h`);
+  if (m || h) parts.push(`${m}m`);
+  parts.push(`${s}s`);
+  return parts.join(' ');
+}
+
+function saveHistory() {
+  const end = new Date();
+  const dur = Math.floor((end - quizStartTime) / 1000);
+  const rec = { score, total: questions.length, date:end.toLocaleString(), duration:formatDuration(dur) };
+  const hist = JSON.parse(localStorage.getItem('quizHistory')||'[]');
+  hist.push(rec);
+  localStorage.setItem('quizHistory', JSON.stringify(hist));
+}
+
+function displayHistory() {
+  const hist = JSON.parse(localStorage.getItem('quizHistory')||'[]');
+  if (!hist.length) return;
+  const div = document.getElementById('scoreHistory');
+  let html = `<h3>Score History</h3><table border="1" cellpadding="5" style="border-collapse:collapse;"><tr><th>#</th><th>Score</th><th>Dur</th><th>Date</th></tr>`;
+  hist.forEach((r,i)=>html+=`<tr><td>${i+1}</td><td>${r.score}/${r.total}</td><td>${r.duration}</td><td>${r.date}</td></tr>`);
+  div.innerHTML = html+'</table><hr>';
+}
+
 function showResult() {
-  saveScoreToHistory(score, questions.length);
-  document.getElementById("quiz").style.display = "none";
-  document.getElementById("finalResult").style.display = "block";
-  document.getElementById("finalResult").innerHTML = `
-      <h2>Your Score: ${score}/${questions.length}</h2>
-      <button id="restartQuizBtn" style="margin-top: 16px;">Restart Quiz</button>
-`;
-  finishBtn.style.display = "none";
-
-  displayScoreHistory();
-
-  // ✅ Restart logic with timer reset
-  document.getElementById("restartQuizBtn").addEventListener("click", () => {
-    // Reset quiz state
-    score = 0;
-    currentQuestion = 0;
-    showingFeedback = false;
-    quizStartTime = new Date();
-
-    // Reset timer
-    clearInterval(countdownInterval);
-    totalTimeInSeconds = 90 * 60; // 1 hour 30 minutes
-    updateTimerDisplay();
-    startTimer(); // start a new countdown
-
-    // Re-shuffle and reload quiz
-    questions.sort(() => Math.random() - 0.5);
-    document.getElementById("quiz").style.display = "block";
-    document.getElementById("finalResult").style.display = "none";
-    loadQuestion();
+  clearInterval(countdown);
+  saveHistory();
+  displayHistory();
+  document.getElementById('quiz').style.display    = 'none';
+  const fr = document.getElementById('finalResult');
+  fr.style.display = 'block';
+  fr.innerHTML = `<h2>Your Score: ${score}/${questions.length}</h2><button id="restartQuizBtn">Restart Quiz</button>`;
+  document.getElementById('restartQuizBtn').addEventListener('click', () => {
+    score = 0; currentQuestion = 0; showingFeedback = false; totalTime=90*60;
+    document.getElementById('quiz').style.display    = 'block';
+    fr.style.display = 'none';
+    questions.sort(() => Math.random()-0.5);
+    loadQuestion(); startTimer();
   });
 }
 
-// Initial call to show history on page load
-// displayScoreHistory(); 
-
-finishBtn.style.display = "none"; // start hidden
-
+// ─── Init ───────────────────────────────────────────────────────────────────
 startTimer();
-
-// Initial call to load first question
+displayHistory();
 loadQuestion();
