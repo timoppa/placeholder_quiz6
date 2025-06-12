@@ -163,13 +163,17 @@ nextBtn.addEventListener("click", () => {
     // Highlight correct and incorrect
     document.querySelectorAll("input[name='option']").forEach(input => {
       const parentLabel = input.parentElement;
-      if (correctAnswers.includes(input.value)) {
+      const inputValue = normalize(input.value);
+    
+      if (correctAnswers.some(ans => normalize(ans) === inputValue)) {
         parentLabel.classList.add("correct");
       }
-      if (input.checked && !correctAnswers.includes(input.value)) {
+    
+      if (input.checked && !correctAnswers.some(ans => normalize(ans) === inputValue)) {
         parentLabel.classList.add("incorrect");
       }
     });
+
 
     // Feedback
     if (isCorrect) {
