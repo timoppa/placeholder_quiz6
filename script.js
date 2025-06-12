@@ -173,7 +173,7 @@ nextBtn.addEventListener("click", () => {
     document.querySelectorAll("input[name='option']").forEach(input => {
       const parentLabel = input.parentElement;
       const normalizedInput = normalize(input.value);
-
+    
       if (normalizedCorrectAnswers.includes(normalizedInput)) {
         parentLabel.classList.add("correct");
       }
@@ -181,6 +181,7 @@ nextBtn.addEventListener("click", () => {
         parentLabel.classList.add("incorrect");
       }
     });
+
 
     // Show feedback
     if (isCorrect) {
