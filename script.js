@@ -1,3 +1,5 @@
+const STORAGE_KEY = 'quizScoreHistory';
+
 const questions = [
   {
     "question": "For this question, refer to the Helicopter Racing League (HRL) case study. Your team is in charge of creating a payment card data vault for card numbers used to bill tens of thousands of viewers, merchandise consumers, and season ticket holders. You need to implement a custom card tokenization service that meets the following requirements:\n* It must provide low latency at minimal cost.\n* It must be able to identify duplicate credit cards and must not store plaintext card numbers.\n* It should support annual key rotation.\n\nWhich storage approach should you adopt for your tokenization service?",
@@ -79,71 +81,109 @@ const questions = [
   },
 ];
 
+// Shuffle once on load
 questions.sort(() => Math.random() - 0.5);
 
 // ─── State & DOM References ───────────────────────────────────────────────────
 let currentQuestion   = 0;
 let score             = 0;
 let showingFeedback   = false;
-let quizStartTime     = new Date();
 let totalTimeSeconds  = 90 * 60;
 let countdownInterval = null;
+let quizStartTime     = new Date();
 
-const questionEl = document.getElementById("question");
-const optionsEl  = document.getElementById("options");
-const nextBtn    = document.getElementById("nextBtn");
-const finishBtn  = document.getElementById("finishTestBtn");
-const resultEl   = document.getElementById("result");
-const timerEl    = document.getElementById("timer");
+const quizEl      = document.getElementById('quiz');
+const questionEl  = document.getElementById('question');
+const optionsEl   = document.getElementById('options');
+const nextBtn     = document.getElementById('nextBtn');
+const finishBtn   = document.getElementById('finishTestBtn');
+const resultEl    = document.getElementById('result');
+const timerEl     = document.getElementById('timer');
+const progressBar = document.getElementById('progressBar');
+const progressTxt = document.getElementById('progressText');
+const finalEl     = document.getElementById('finalResult');
 
-// ─── Utility Functions ───────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 function shuffleArray(arr) {
   return arr.sort(() => Math.random() - 0.5);
 }
 
 function normalize(str) {
   return str
-    .replace(/\\/g, "")     // remove all backslashes
-    .replace(/\s+/g, " ")   // collapse whitespace/newlines into single spaces
+    .replace(/\\/g, '')     // strip backslashes
+    .replace(/\s+/g, ' ')   // collapse whitespace
     .trim();
 }
 
-function updateProgress() {
-  const pct = (currentQuestion / questions.length) * 100;
-  document.getElementById("progressBar").style.width = `${pct}%`;
-  document.getElementById("progressText").textContent =
-    `Question ${currentQuestion + 1} of ${questions.length}`;
+function formatDuration(sec) {
+  const h = Math.floor(sec / 3600),
+        m = Math.floor((sec % 3600) / 60),
+        s = sec % 60;
+  const parts = [];
+  if (h) parts.push(`${h}h`);
+  if (m || h) parts.push(`${m}m`);
+  parts.push(`${s}s`);
+  return parts.join(' ');
 }
 
-// ─── Render Question ─────────────────────────────────────────────────────────
+// ─── LocalStorage History ────────────────────────────────────────────────────
+function saveScoreToHistory(score, total) {
+  const endTime = new Date();
+  const durationSecs = Math.floor((endTime - quizStartTime) / 1000);
+  const record = {
+    score,
+    total,
+    date: endTime.toLocaleString(),
+    duration: formatDuration(durationSecs)
+  };
+  const hist = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+  hist.push(record);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(hist));
+}
+
+function getHistory() {
+  return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+}
+
+function clearHistory() {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+// ─── Rendering ───────────────────────────────────────────────────────────────
+function updateProgress() {
+  const pct = (currentQuestion / questions.length) * 100;
+  progressBar.style.width = pct + '%';
+  progressTxt.textContent = `Question ${currentQuestion + 1} of ${questions.length}`;
+}
+
 function loadQuestion() {
-  showingFeedback    = false;
-  resultEl.innerHTML = "";
-  nextBtn.textContent = "Submit";
+  showingFeedback = false;
+  resultEl.innerHTML = '';
+  nextBtn.textContent = 'Submit';
 
   const q = questions[currentQuestion];
   questionEl.textContent = q.question;
-  optionsEl.innerHTML    = "";
+  optionsEl.innerHTML = '';
 
   const shuffled = shuffleArray([...q.options]);
-  const type     = q.multiple ? "checkbox" : "radio";
+  const type = q.multiple ? 'checkbox' : 'radio';
 
   shuffled.forEach(opt => {
-    const li    = document.createElement("li");
-    const label = document.createElement("label");
-    label.className = "option";
+    const li = document.createElement('li');
+    const label = document.createElement('label');
+    label.className = 'option';
 
-    const input = document.createElement("input");
-    input.type  = type;
-    input.name  = "option";
+    const input = document.createElement('input');
+    input.type = type;
+    input.name = 'option';
     input.value = opt;
 
-    const span = document.createElement("span");
+    const span = document.createElement('span');
     span.textContent = opt;
 
-    input.addEventListener("change", () => {
-      document.querySelectorAll(".option").forEach(o => o.classList.remove("selected"));
-      label.classList.add("selected");
+    input.addEventListener('change', () => {
+      document.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
+      label.classList.add('selected');
     });
 
     label.append(input, span);
@@ -152,23 +192,13 @@ function loadQuestion() {
   });
 
   updateProgress();
-  finishBtn.style.display = (currentQuestion === questions.length - 1) ? "block" : "none";
+  finishBtn.style.display = currentQuestion === questions.length - 1 ? 'inline-block' : 'none';
 }
 
 // ─── Timer ────────────────────────────────────────────────────────────────────
-function updateTimerDisplay() {
-  const h = Math.floor(totalTimeSeconds / 3600);
-  const m = Math.floor((totalTimeSeconds % 3600) / 60);
-  const s = totalTimeSeconds % 60;
-
-  let parts = [];
-  if (h) parts.push(`${h}h`);
-  if (m || h) parts.push(`${m}m`);
-  parts.push(`${s}s`);
-
-  timerEl.textContent = `Time Remaining: ${parts.join(" ")}`;
+function updateTimer() {
+  timerEl.textContent = `Time Remaining: ${formatDuration(totalTimeSeconds)}`;
   totalTimeSeconds--;
-
   if (totalTimeSeconds < 0) {
     clearInterval(countdownInterval);
     alert("Time's up! Submitting your quiz.");
@@ -177,16 +207,14 @@ function updateTimerDisplay() {
 }
 
 function startTimer() {
-  updateTimerDisplay();
-  countdownInterval = setInterval(updateTimerDisplay, 1000);
+  updateTimer();
+  countdownInterval = setInterval(updateTimer, 1000);
 }
 
-// ─── Submission & Feedback ───────────────────────────────────────────────────
-nextBtn.addEventListener("click", () => {
-  const currentQ       = questions[currentQuestion];
-  const selectedInputs = Array.from(
-    document.querySelectorAll("input[name='option']:checked")
-  );
+// ─── Answer Submission & Feedback ─────────────────────────────────────────────
+nextBtn.addEventListener('click', () => {
+  const q = questions[currentQuestion];
+  const selectedInputs = Array.from(optionsEl.querySelectorAll('input[name="option"]:checked'));
 
   if (!showingFeedback) {
     if (selectedInputs.length === 0) {
@@ -194,38 +222,40 @@ nextBtn.addEventListener("click", () => {
       return;
     }
 
-    // Normalize selected vs. correct
+    // Normalize both sides
     const selectedNorm = selectedInputs.map(i => normalize(i.value));
-    const correctNorm  = currentQ.answer.map(a => normalize(a));
+    const correctNorm = q.answer.map(a => normalize(a));
 
-    const isCorrect =
+    const isCorrect = 
       selectedNorm.length === correctNorm.length &&
       correctNorm.every(ans => selectedNorm.includes(ans));
 
-    // Disable & highlight in one pass
-    optionsEl.querySelectorAll("input[name='option']").forEach(input => {
+    // Disable & highlight
+    optionsEl.querySelectorAll('input[name="option"]').forEach(input => {
       input.disabled = true;
       const valNorm = normalize(input.value);
-      const lbl     = input.parentElement;
-
-      if (correctNorm.includes(valNorm))       lbl.classList.add("correct");
-      else if (input.checked)                  lbl.classList.add("incorrect");
+      const lbl = input.parentElement;
+      if (correctNorm.includes(valNorm)) {
+        lbl.classList.add('correct');
+      } else if (input.checked) {
+        lbl.classList.add('incorrect');
+      }
     });
 
-    // Show feedback message
+    // Feedback message
     resultEl.innerHTML = isCorrect
       ? `<p style="color:green;">✅ Correct!</p>`
       : `<p style="color:red;">❌ Incorrect.</p>
-         <p>Correct Answer:<br><strong>${currentQ.answer.join("<br>")}</strong></p>`;
+         <p>Correct Answer:<br><strong>${q.answer.join('<br>')}</strong></p>`;
 
     if (isCorrect) score++;
-    showingFeedback     = true;
+    showingFeedback = true;
     nextBtn.textContent = (currentQuestion < questions.length - 1)
-      ? "Next Question"
-      : "See Result";
+      ? 'Next Question'
+      : 'See Result';
 
   } else {
-    // Move to next question or finish
+    // Next or Finish
     currentQuestion++;
     if (currentQuestion < questions.length) {
       loadQuestion();
@@ -235,13 +265,71 @@ nextBtn.addEventListener("click", () => {
   }
 });
 
-// ─── Show Result & Restart ───────────────────────────────────────────────────
+// ─── Show Result & Display History ────────────────────────────────────────────
 function showResult() {
   clearInterval(countdownInterval);
-  // ... your existing showResult logic (save history, display final screen, etc.) ...
+  saveScoreToHistory(score, questions.length);
+
+  quizEl.style.display = 'none';
+  finalEl.style.display = 'block';
+  finalEl.innerHTML = `
+    <h2>Your Score: ${score}/${questions.length}</h2>
+    <button id="restartQuizBtn">Restart Quiz</button>
+    <button id="clearHistoryBtn">Clear History</button>
+    <div id="historyContainer"></div>
+  `;
+
+  // Render history table
+  const hist = getHistory();
+  const container = document.getElementById('historyContainer');
+  if (hist.length === 0) {
+    container.innerHTML = '<p>No past attempts yet.</p>';
+  } else {
+    container.innerHTML = `
+      <h3>Score History</h3>
+      <table border="1" cellpadding="5" style="border-collapse:collapse; width:100%; margin-top:1em;">
+        <thead>
+          <tr><th>#</th><th>Score</th><th>Time Taken</th><th>Date</th></tr>
+        </thead>
+        <tbody>
+          ${hist.map((r,i) => `
+            <tr>
+              <td>${i+1}</td>
+              <td>${r.score} / ${r.total}</td>
+              <td>${r.duration}</td>
+              <td>${r.date}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  // Restart logic
+  document.getElementById('restartQuizBtn').addEventListener('click', () => {
+    score = 0;
+    currentQuestion = 0;
+    totalTimeSeconds = 90 * 60;
+    showingFeedback = false;
+    quizStartTime = new Date();
+
+    finalEl.style.display = 'none';
+    quizEl.style.display = 'block';
+    questions.sort(() => Math.random() - 0.5);
+    loadQuestion();
+    startTimer();
+  });
+
+  // Clear history logic
+  document.getElementById('clearHistoryBtn').addEventListener('click', () => {
+    if (confirm("Clear all past attempts?")) {
+      clearHistory();
+      document.getElementById('historyContainer').innerHTML = '<p>No past attempts yet.</p>';
+    }
+  });
 }
 
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
-finishBtn.style.display = "none";
+finishBtn.style.display = 'none';
 loadQuestion();
 startTimer();
