@@ -263,9 +263,12 @@ function showResult() {
 }
 
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
-finishBtn.style.display = 'none';
+document.addEventListener('DOMContentLoaded', () => {
+  // 1️⃣ Show any past attempts above the quiz
+  displayScoreHistory();
 
-displayScoreHistory();
-
-loadQuestion();
-startTimer();
+  // 2️⃣ Start the quiz
+  finishBtn.style.display = 'none';
+  loadQuestion();
+  startTimer();
+});
