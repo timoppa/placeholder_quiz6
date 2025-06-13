@@ -201,24 +201,29 @@ let countdownInterval = setInterval(() => {
 updateTimerDisplay(); // show initial value
 
 
+// normalising the string
 function normalize(str) {
   return str
-    .replace(/\\+/g, '')    // remove all literal backslashes
-    .replace(/\s+/g, ' ')   // collapse whitespace/newlines into single spaces
-    .trim();
+    .replace(/\\/g, '')     // remove all backslashes
+    .replace(/\s+/g, ' ')   // collapse all whitespace/newlines into single spaces
+    .trim();                // trim leading/trailing spaces
 }
+
 
 nextBtn.addEventListener("click", () => {
   const currentQ = questions[currentQuestion];
-  const selectedInputs = Array.from(document.querySelectorAll("input[name='option']:checked"));
-  const correctAnswers = currentQ.answer;
+  const selectedInputs = Array.from(
+    document.querySelectorAll("input[name='option']:checked")
+  );
 
   if (!showingFeedback) {
     if (selectedInputs.length === 0) return alert("Please select at least one option.");
 
-    const selectedNorm    = selectedInputs.map(i => normalize(i.value));
-    const correctNorm     = currentQ.answer.map(a => normalize(a));
+    // build two normalized arrays
+    const selectedNorm = selectedInputs.map(i => normalize(i.value));
+    const correctNorm = currentQ.answer.map(a => normalize(a));
     
+    // compare lengths + every correct answer appears in selectedNorm
     const isCorrect = 
       selectedNorm.length === correctNorm.length &&
       correctNorm.every(ans => selectedNorm.includes(ans));
