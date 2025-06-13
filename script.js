@@ -91,6 +91,7 @@ let showingFeedback   = false;
 let quizStartTime     = new Date();
 let totalTimeSeconds  = 90 * 60;
 let countdownInterval = null;
+let userAnswers = [];
 
 const questionEl = document.getElementById("question");
 const optionsEl  = document.getElementById("options");
@@ -204,6 +205,14 @@ nextBtn.addEventListener("click", () => {
     const isCorrect =
       selectedNorm.length === correctNorm.length &&
       correctNorm.every(ans => selectedNorm.includes(ans));
+
+    const selectedRaw = selectedInputs.map(input => input.value); // preserve original formatting
+      userAnswers[currentQuestion] = {
+        selected: selectedRaw,
+        correct: currentQ.answer,
+        question: currentQ.question
+      };
+
 
     // Disable & highlight in one pass
     optionsEl.querySelectorAll("input[name='option']").forEach(input => {
@@ -338,6 +347,33 @@ function showResult() {
     document.getElementById("finalResult").style.display = "none";
     loadQuestion();
   });
+
+  const summaryDiv = document.getElementById("summaryPage");
+    summaryDiv.innerHTML = "<h3>Question Summary</h3>";
+    
+    userAnswers.forEach((entry, index) => {
+      const isCorrect = 
+        entry.selected.length === entry.correct.length &&
+        entry.correct.every(ans => entry.selected.includes(ans));
+    
+      const questionHTML = `
+        <div style="border: 1px solid #ccc; padding: 10px; margin-bottom: 12px;">
+          <p><strong>Q${index + 1}:</strong> ${entry.question}</p>
+          <p><strong>Your Answer:</strong><br>${entry.selected.join("<br>")}</p>
+          <p><strong>Correct Answer:</strong><br>${entry.correct.join("<br>")}</p>
+          <p>${isCorrect ? "✅ Correct" : "❌ Incorrect"}</p>
+        </div>
+      `;
+    
+      summaryDiv.innerHTML += questionHTML;
+    });
+    
+    // Hide quiz and show summary
+    document.getElementById("quiz").style.display = "none";
+    document.getElementById("finalResult").style.display = "block";
+    document.getElementById("scoreHistory").style.display = "block";
+    summaryDiv.style.display = "block";
+
 }
 
 
