@@ -264,5 +264,8 @@ function showResult() {
 
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
 finishBtn.style.display = 'none';
+
+displayScoreHistory();
+
 loadQuestion();
 startTimer();
