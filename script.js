@@ -210,6 +210,7 @@ function displayScoreHistory() {
 
   const div = document.createElement("div");
   div.id = "scoreHistory";
+  div.style.display = "none";
   div.innerHTML = `
     <h3>Score History</h3>
     <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%;">
@@ -254,6 +255,8 @@ function showResult() {
   finishBtn.style.display = "none";
 
   displayScoreHistory();
+  document.getElementById("scoreHistory").style.display = "block";
+
 
   document.getElementById("restartQuizBtn").addEventListener("click", () => {
     score = 0;
@@ -274,7 +277,6 @@ function showResult() {
 
 
 // ─── Bootstrap ───────────────────────────────────────────────────────────────
-displayScoreHistory();
 
 finishBtn.style.display = "none";
 loadQuestion();
