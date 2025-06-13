@@ -37,12 +37,12 @@ let score = 0;
 let showingFeedback = false;
 const quizStartTime = new Date();
 
-// ─── DOM References ──────────────────────────────────────────────────────────
+// ─── DOM References ───────────────────────────────────────────────────────────
 const questionEl = document.getElementById('question');
 const optionsEl  = document.getElementById('options');
 const nextBtn    = document.getElementById('nextBtn');
-const resultEl   = document.getElementById('result');
 const finishBtn  = document.getElementById('finishTestBtn');
+const resultEl   = document.getElementById('result');
 const timerEl    = document.getElementById('timer');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -165,54 +165,19 @@ nextBtn.addEventListener('click', () => {
   }
 });
 
-// ─── Final Result ────────────────────────────────────────────────────────────
-function formatDuration(sec) {
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  const s = sec % 60;
-  const parts = [];
-  if (h) parts.push(`${h}h`);
-  if (m || h) parts.push(`${m}m`);
-  parts.push(`${s}s`);
-  return parts.join(' ');
-}
+// ─── Next Page / Final Result Navigation ─────────────────────────────────────
+finishBtn.addEventListener('click', () => {
+  // Navigate to results page (results.html)
+  window.location.href = 'results.html';
+});
 
-function saveHistory() {
-  const end = new Date();
-  const dur = Math.floor((end - quizStartTime) / 1000);
-  const rec = { score, total: questions.length, date:end.toLocaleString(), duration:formatDuration(dur) };
-  const hist = JSON.parse(localStorage.getItem('quizHistory')||'[]');
-  hist.push(rec);
-  localStorage.setItem('quizHistory', JSON.stringify(hist));
-}
+// ─── Final Result (on results.html) ─────────────────────────────────────────
+// On the results.html page, include a script that reads from localStorage or
+// passes data via query params, then displays score and history.
 
-function displayHistory() {
-  const hist = JSON.parse(localStorage.getItem('quizHistory')||'[]');
-  if (!hist.length) return;
-  const div = document.getElementById('scoreHistory');
-  let html = `<h3>Score History</h3><table border="1" cellpadding="5" style="border-collapse:collapse;"><tr><th>#</th><th>Score</th><th>Dur</th><th>Date</th></tr>`;
-  hist.forEach((r,i)=>html+=`<tr><td>${i+1}</td><td>${r.score}/${r.total}</td><td>${r.duration}</td><td>${r.date}</td></tr>`);
-  div.innerHTML = html+'</table><hr>';
-}
-
-function showResult() {
-  clearInterval(countdown);
-  saveHistory();
-  displayHistory();
-  document.getElementById('quiz').style.display    = 'none';
-  const fr = document.getElementById('finalResult');
-  fr.style.display = 'block';
-  fr.innerHTML = `<h2>Your Score: ${score}/${questions.length}</h2><button id="restartQuizBtn">Restart Quiz</button>`;
-  document.getElementById('restartQuizBtn').addEventListener('click', () => {
-    score = 0; currentQuestion = 0; showingFeedback = false; totalTime=90*60;
-    document.getElementById('quiz').style.display    = 'block';
-    fr.style.display = 'none';
-    questions.sort(() => Math.random()-0.5);
-    loadQuestion(); startTimer();
-  });
-}
-
-// ─── Init ───────────────────────────────────────────────────────────────────
-startTimer();
-displayHistory();
-loadQuestion();
+// Example (in results.js):
+// document.addEventListener('DOMContentLoaded', () => {
+//   const score = /* retrieve score */;
+//   document.getElementById('finalScore').textContent = `${score}/${questions.length}`;
+//   /* display history similarly */
+// });
