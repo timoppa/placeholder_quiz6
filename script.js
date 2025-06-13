@@ -181,18 +181,57 @@ nextBtn.addEventListener('click', () => {
   }
 });
 
+
+// ─── (1) Adjust displayScoreHistory to target #finalResult ────────────────
+function displayScoreHistory() {
+  const history = JSON.parse(localStorage.getItem('quizScoreHistory')) || [];
+  if (!history.length) return;
+
+  // build a table of past results
+  let rows = history.map((item, idx) => `
+    <tr>
+      <td>${idx + 1}</td>
+      <td>${item.score} / ${item.total}</td>
+      <td>${item.duration}</td>
+      <td>${item.date}</td>
+    </tr>
+  `).join('');
+
+  const historyHtml = `
+    <h3>Score History</h3>
+    <table border="1" cellpadding="5" style="border-collapse: collapse; width:100%; margin-top:1em;">
+      <thead>
+        <tr>
+          <th>#</th><th>Score</th><th>Time Taken</th><th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+      </tbody>
+    </table>
+  `;
+
+  // append it under the finalResult container
+  finalEl.insertAdjacentHTML('beforeend', historyHtml);
+}
+
+
 // ─── Show Result & Restart ────────────────────────────────────────────────────
 function showResult() {
   clearInterval(countdownInterval);
+  saveScoreToHistory(score, questions.length);
 
-  // hide quiz
+  // hide quiz, show final
   quizEl.style.display  = 'none';
-  // show final
   finalEl.style.display = 'block';
-  finalEl.innerHTML = `
+  finalEl.innerHTML     = `
     <h2>Your Score: ${score}/${questions.length}</h2>
     <button id="restartQuizBtn">Restart Quiz</button>
   `;
+
+  // now inject the history table below
+  displayScoreHistory();
+
 
   document.getElementById('restartQuizBtn').addEventListener('click', () => {
     // reset state
