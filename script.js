@@ -1,3 +1,4 @@
+// ─── Question Data ─────────────────────────────────────────────────────────
 const questions = [
   {
     question: `For this question, refer to the Helicopter Racing League (HRL) case study. Recently HRL started a new regional racing league in Cape Town, South Africa. In an effort to give customers in Cape Town a better user experience, HRL has partnered with the Content Delivery Network provider, Fastly. HRL needs to allow traffic coming from all of the Fastly IP address ranges into their Virtual Private Cloud network (VPC network). You are a member of the HRL security team and you need to configure the update that will allow only the Fastly IP address ranges through the External HTTP(S) load balancer. Which command should you use?`,
@@ -28,22 +29,28 @@ const questions = [
   }
 ];
 
-// Shuffle questions on load
+// shuffle on load
 questions.sort(() => Math.random() - 0.5);
 
 // ─── State ───────────────────────────────────────────────────────────────────
-let currentQuestion = 0;
-let score = 0;
-let showingFeedback = false;
-const quizStartTime = new Date();
+let currentQuestion    = 0;
+let score              = 0;
+let showingFeedback    = false;
+let totalTimeSeconds   = 90 * 60;
+let countdownInterval  = null;
+const quizStartTime    = new Date();
 
 // ─── DOM References ───────────────────────────────────────────────────────────
-const questionEl = document.getElementById('question');
-const optionsEl  = document.getElementById('options');
-const nextBtn    = document.getElementById('nextBtn');
-const finishBtn  = document.getElementById('finishTestBtn');
-const resultEl   = document.getElementById('result');
-const timerEl    = document.getElementById('timer');
+const questionEl   = document.getElementById('question');
+const optionsEl    = document.getElementById('options');
+const nextBtn      = document.getElementById('nextBtn');
+const finishBtn    = document.getElementById('finishTestBtn');
+const resultEl     = document.getElementById('result');
+const timerEl      = document.getElementById('timer');
+const progressBar  = document.getElementById('progressBar');
+const progressText = document.getElementById('progressText');
+const quizEl       = document.getElementById('quiz');
+const finalEl      = document.getElementById('finalResult');
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function normalize(str) {
@@ -59,11 +66,11 @@ function shuffleArray(arr) {
 
 function updateProgress() {
   const pct = (currentQuestion / questions.length) * 100;
-  document.getElementById('progressBar').style.width = `${pct}%`;
-  document.getElementById('progressText').textContent = `Question ${currentQuestion + 1} of ${questions.length}`;
+  progressBar.style.width = pct + '%';
+  progressText.textContent = `Question ${currentQuestion + 1} of ${questions.length}`;
 }
 
-// ─── Load & Render ──────────────────────────────────────────────────────────
+// ─── Render a Question ───────────────────────────────────────────────────────
 function loadQuestion() {
   showingFeedback = false;
   resultEl.innerHTML = '';
@@ -74,7 +81,7 @@ function loadQuestion() {
   optionsEl.innerHTML = '';
 
   const shuffled = shuffleArray([...q.options]);
-  const type = q.multiple ? 'checkbox' : 'radio';
+  const inputType = q.multiple ? 'checkbox' : 'radio';
 
   shuffled.forEach(opt => {
     const li    = document.createElement('li');
@@ -82,7 +89,7 @@ function loadQuestion() {
     label.className = 'option';
 
     const input = document.createElement('input');
-    input.type  = type;
+    input.type  = inputType;
     input.name  = 'option';
     input.value = opt;
 
@@ -100,13 +107,10 @@ function loadQuestion() {
   });
 
   updateProgress();
-  finishBtn.style.display = currentQuestion >= questions.length - 1 ? 'block' : 'none';
+  finishBtn.style.display = (currentQuestion >= questions.length - 1) ? 'inline-block' : 'none';
 }
 
-// ─── Timer ──────────────────────────────────────────────────────────────────
-let totalTime = 90 * 60;
-let countdown;
-
+// ─── Timer ────────────────────────────────────────────────────────────────────
 function formatTime(sec) {
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
@@ -119,43 +123,88 @@ function formatTime(sec) {
 }
 
 function updateTimer() {
-  timerEl.textContent = `Time Remaining: ${formatTime(totalTime--)}`;
-  if (totalTime < 0) {
-    clearInterval(countdown);
+  timerEl.textContent = `Time Remaining: ${formatTime(totalTimeSeconds)}`;
+  totalTimeSeconds--;
+  if (totalTimeSeconds < 0) {
+    clearInterval(countdownInterval);
     alert("Time's up! Submitting your quiz.");
     showResult();
   }
 }
 
+function startTimer() {
+  updateTimer();
+  countdownInterval = setInterval(updateTimer, 1000);
+}
+
+// ─── Submission / Feedback ────────────────────────────────────────────────────
+nextBtn.addEventListener('click', () => {
+  const q       = questions[currentQuestion];
+  const checked = Array.from(document.querySelectorAll('input[name="option"]:checked'));
+
+  if (!showingFeedback) {
+    if (!checked.length) return alert('Please select at least one option.');
+
+    const userNorm    = checked.map(i => normalize(i.value));
+    const correctNorm = q.answer.map(a => normalize(a));
+
+    // disable all
+    document.querySelectorAll('input[name="option"]').forEach(i => i.disabled = true);
+
+    // highlight
+    document.querySelectorAll('input[name="option"]').forEach(i => {
+      const val = normalize(i.value), lbl = i.parentElement;
+      if (correctNorm.includes(val)) lbl.classList.add('correct');
+      if (i.checked && !correctNorm.includes(val)) lbl.classList.add('incorrect');
+    });
+
+    const isRight = userNorm.length === correctNorm.length
+      && correctNorm.every(c => userNorm.includes(c));
+
+    resultEl.innerHTML = isRight
+      ? `<p style="color:green;">✅ Correct!</p>`
+      : `<p style="color:red;">❌ Incorrect.</p>
+         <p>Correct Answer:<br><strong>${q.answer.join("<br>")}</strong></p>`;
+
+    if (isRight) score++;
+    showingFeedback = true;
+    nextBtn.textContent = (currentQuestion < questions.length - 1)
+      ? 'Next Question'
+      : 'See Result';
+  } else {
+    currentQuestion++;
+    if (currentQuestion < questions.length) {
+      loadQuestion();
+    } else {
+      showResult();
+    }
+  }
+});
+
+// ─── Show Result & Restart ────────────────────────────────────────────────────
 function showResult() {
-  // stop the clock
-  clearInterval(countdown);
+  clearInterval(countdownInterval);
 
-  // save to history, if you want
-  saveScoreToHistory(score, questions.length);
-
-  // hide the quiz area
-  document.getElementById('quiz').style.display = 'none';
-
-  // reveal your result container
-  const fr = document.getElementById('finalResult');
-  fr.style.display = 'block';
-  fr.innerHTML = `
+  // hide quiz
+  quizEl.style.display  = 'none';
+  // show final
+  finalEl.style.display = 'block';
+  finalEl.innerHTML = `
     <h2>Your Score: ${score}/${questions.length}</h2>
     <button id="restartQuizBtn">Restart Quiz</button>
   `;
 
-  // wire up the restart button
   document.getElementById('restartQuizBtn').addEventListener('click', () => {
     // reset state
-    score = 0;
-    currentQuestion = 0;
-    showingFeedback = false;
-    totalTime = 90 * 60;
+    score             = 0;
+    currentQuestion   = 0;
+    totalTimeSeconds  = 90 * 60;
+    showingFeedback   = false;
+    quizStartTime     = new Date();
 
-    // hide result, show quiz
-    fr.style.display = 'none';
-    document.getElementById('quiz').style.display = 'block';
+    // hide final, show quiz
+    finalEl.style.display = 'none';
+    quizEl.style.display  = 'block';
 
     // reshuffle & restart
     questions.sort(() => Math.random() - 0.5);
@@ -164,51 +213,8 @@ function showResult() {
   });
 }
 
-
-function startTimer() {
-  updateTimer();
-  countdown = setInterval(updateTimer, 1000);
-}
-
-// ─── Submission & Feedback ─────────────────────────────────────────────────
-nextBtn.addEventListener('click', () => {
-  const q = questions[currentQuestion];
-  const checked = Array.from(optionsEl.querySelectorAll('input[name="option"]:checked'));
-  if (!showingFeedback) {
-    if (!checked.length) return alert('Please select at least one option.');
-
-    const user = checked.map(i => normalize(i.value));
-    const correct = q.answer.map(a => normalize(a));
-
-    optionsEl.querySelectorAll('input').forEach(i => i.disabled = true);
-    optionsEl.querySelectorAll('input').forEach(i => {
-      const val = normalize(i.value);
-      const lbl = i.parentElement;
-      if (correct.includes(val)) lbl.classList.add('correct');
-      if (i.checked && !correct.includes(val)) lbl.classList.add('incorrect');
-    });
-
-    const right = user.length === correct.length && correct.every(a => user.includes(a));
-
-    resultEl.innerHTML = right
-      ? `<p style="color:green;">✅ Correct!</p>`
-      : `<p style="color:red;">❌ Incorrect.</p><p>Correct: <strong>${q.answer.join("\n")}</strong></p>`;
-
-    showingFeedback = true;
-    nextBtn.textContent = currentQuestion < questions.length - 1 ? 'Next Question' : 'See Result';
-  } else {
-    currentQuestion++;
-    if (currentQuestion < questions.length) loadQuestion();
-    else showResult();
-  }
+// ─── Boot up on page load ─────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  loadQuestion();
+  startTimer();
 });
-
-// ─── Next Page / Final Result Navigation ─────────────────────────────────────
-// ✅ Call your inline showResult() instead
-finishBtn.addEventListener('click', showResult);
-});
-
-
-// render the first question & start the timer as soon as the script runs
-loadQuestion();
-startTimer();
