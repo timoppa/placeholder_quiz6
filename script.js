@@ -67,9 +67,9 @@ function shuffleArray(arr) {
 }
 
 function formatDuration(sec) {
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  const s = sec % 60;
+  const h = Math.floor(sec / 3600),
+        m = Math.floor((sec % 3600) / 60),
+        s = sec % 60;
   const parts = [];
   if (h) parts.push(`${h}h`);
   if (m || h) parts.push(`${m}m`);
@@ -79,46 +79,44 @@ function formatDuration(sec) {
 
 function saveScoreToHistory(score, total) {
   const endTime = new Date();
-  const durationInSeconds = Math.floor((endTime - quizStartTime) / 1000);
+  const duration = Math.floor((endTime - quizStartTime) / 1000);
   const record = {
     score,
     total,
     date: endTime.toLocaleString(),
-    duration: formatDuration(durationInSeconds)
+    duration: formatDuration(duration)
   };
-  const history = JSON.parse(localStorage.getItem('quizScoreHistory') || '[]');
-  history.push(record);
-  localStorage.setItem('quizScoreHistory', JSON.stringify(history));
+  const hist = JSON.parse(localStorage.getItem('quizScoreHistory') || '[]');
+  hist.push(record);
+  localStorage.setItem('quizScoreHistory', JSON.stringify(hist));
 }
 
-function displayScoreHistory() {
-  const history = JSON.parse(localStorage.getItem('quizScoreHistory')) || [];
-  if (!history.length) return;
+function displayScoreHistory(containerId = 'historyContainer') {
+  const history = JSON.parse(localStorage.getItem('quizScoreHistory') || '[]');
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  if (!history.length) {
+    container.innerHTML = `<p>No past attempts yet.</p>`;
+    return;
+  }
 
-  const rows = history.map((item, idx) => `
+  const rows = history.map((item, i) => `
     <tr>
-      <td>${idx + 1}</td>
+      <td>${i + 1}</td>
       <td>${item.score} / ${item.total}</td>
       <td>${item.duration}</td>
       <td>${item.date}</td>
-    </tr>
-  `).join('');
+    </tr>`).join('');
 
-  const historyHtml = `
+  container.innerHTML = `
     <h3>Score History</h3>
     <table border="1" cellpadding="5" style="border-collapse:collapse; width:100%; margin-top:1em;">
       <thead>
-        <tr>
-          <th>#</th><th>Score</th><th>Time Taken</th><th>Date</th>
-        </tr>
+        <tr><th>#</th><th>Score</th><th>Time Taken</th><th>Date</th></tr>
       </thead>
-      <tbody>
-        ${rows}
-      </tbody>
+      <tbody>${rows}</tbody>
     </table>
   `;
-
-  finalEl.insertAdjacentHTML('beforeend', historyHtml);
 }
 
 // ─── Progress & Rendering ─────────────────────────────────────────────────────
@@ -138,7 +136,7 @@ function loadQuestion() {
   optionsEl.innerHTML = '';
 
   const shuffled = shuffleArray([...q.options]);
-  const inputType = q.multiple ? 'checkbox' : 'radio';
+  const type = q.multiple ? 'checkbox' : 'radio';
 
   shuffled.forEach(opt => {
     const li    = document.createElement('li');
@@ -146,7 +144,7 @@ function loadQuestion() {
     label.className = 'option';
 
     const input = document.createElement('input');
-    input.type  = inputType;
+    input.type  = type;
     input.name  = 'option';
     input.value = opt;
 
@@ -183,7 +181,7 @@ function startTimer() {
   countdownInterval = setInterval(updateTimer, 1000);
 }
 
-// ─── Submission / Feedback ────────────────────────────────────────────────────
+// ─── Submit / Feedback ───────────────────────────────────────────────────────
 nextBtn.addEventListener('click', () => {
   const q       = questions[currentQuestion];
   const checked = Array.from(document.querySelectorAll('input[name="option"]:checked'));
@@ -197,7 +195,7 @@ nextBtn.addEventListener('click', () => {
     // disable inputs
     document.querySelectorAll('input[name="option"]').forEach(i => i.disabled = true);
 
-    // highlight correct/incorrect
+    // highlight
     document.querySelectorAll('input[name="option"]').forEach(i => {
       const val = normalize(i.value), lbl = i.parentElement;
       if (correctNorm.includes(val)) lbl.classList.add('correct');
@@ -214,9 +212,7 @@ nextBtn.addEventListener('click', () => {
 
     if (isRight) score++;
     showingFeedback = true;
-    nextBtn.textContent = (currentQuestion < questions.length - 1)
-      ? 'Next Question'
-      : 'See Result';
+    nextBtn.textContent = (currentQuestion < questions.length - 1) ? 'Next Question' : 'See Result';
   } else {
     currentQuestion++;
     if (currentQuestion < questions.length) {
@@ -240,9 +236,11 @@ function showResult() {
   finalEl.innerHTML     = `
     <h2>Your Score: ${score}/${questions.length}</h2>
     <button id="restartQuizBtn">Restart Quiz</button>
+    <div id="historyContainer"></div>
   `;
 
-  displayScoreHistory();
+  // now render the full history table
+  displayScoreHistory('historyContainer');
 
   document.getElementById('restartQuizBtn').addEventListener('click', () => {
     score            = 0;
@@ -260,7 +258,7 @@ function showResult() {
   });
 }
 
-// ─── Bootstrap on DOM Ready ────────────────────────────────────────────────────
+// ─── Bootstrap on DOM Ready ───────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   loadQuestion();
   startTimer();
