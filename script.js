@@ -330,6 +330,10 @@ function displayScoreHistory() {
       totalTimeSeconds = 90 * 60; // reset to your default duration
       updateTimerDisplay();
       startTimer();
+
+      // Hide score history section
+      const historySection = document.getElementById("scoreHistory");
+      if (historySection) historySection.style.display = "none";
   
       // Shuffle and reload quiz
       questions.sort(() => Math.random() - 0.5);
