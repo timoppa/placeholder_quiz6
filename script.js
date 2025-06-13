@@ -127,6 +127,44 @@ function updateTimer() {
   }
 }
 
+function showResult() {
+  // stop the clock
+  clearInterval(countdown);
+
+  // save to history, if you want
+  saveScoreToHistory(score, questions.length);
+
+  // hide the quiz area
+  document.getElementById('quiz').style.display = 'none';
+
+  // reveal your result container
+  const fr = document.getElementById('finalResult');
+  fr.style.display = 'block';
+  fr.innerHTML = `
+    <h2>Your Score: ${score}/${questions.length}</h2>
+    <button id="restartQuizBtn">Restart Quiz</button>
+  `;
+
+  // wire up the restart button
+  document.getElementById('restartQuizBtn').addEventListener('click', () => {
+    // reset state
+    score = 0;
+    currentQuestion = 0;
+    showingFeedback = false;
+    totalTime = 90 * 60;
+
+    // hide result, show quiz
+    fr.style.display = 'none';
+    document.getElementById('quiz').style.display = 'block';
+
+    // reshuffle & restart
+    questions.sort(() => Math.random() - 0.5);
+    loadQuestion();
+    startTimer();
+  });
+}
+
+
 function startTimer() {
   updateTimer();
   countdown = setInterval(updateTimer, 1000);
@@ -166,18 +204,11 @@ nextBtn.addEventListener('click', () => {
 });
 
 // ─── Next Page / Final Result Navigation ─────────────────────────────────────
-finishBtn.addEventListener('click', () => {
-  // Navigate to results page (results.html)
-  window.location.href = 'results.html';
+// ✅ Call your inline showResult() instead
+finishBtn.addEventListener('click', showResult);
 });
 
-// ─── Final Result (on results.html) ─────────────────────────────────────────
-// On the results.html page, include a script that reads from localStorage or
-// passes data via query params, then displays score and history.
 
-// Example (in results.js):
-// document.addEventListener('DOMContentLoaded', () => {
-//   const score = /* retrieve score */;
-//   document.getElementById('finalScore').textContent = `${score}/${questions.length}`;
-//   /* display history similarly */
-// });
+// render the first question & start the timer as soon as the script runs
+loadQuestion();
+startTimer();
