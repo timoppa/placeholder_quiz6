@@ -130,7 +130,6 @@ function loadQuestion() {
   // ✅ Now add the `.selected` logic AFTER options are rendered
   optionsEl.querySelectorAll("input[type='radio']").forEach(input => {
     input.addEventListener('change', () => {
-      document.querySelectorAll('.option').forEach(opt => opt.classList.remove('selected'));
       input.parentElement.classList.add('selected');
     });
   });
@@ -215,65 +214,43 @@ nextBtn.addEventListener("click", () => {
   const selectedInputs = Array.from(
     document.querySelectorAll("input[name='option']:checked")
   );
-
   if (!showingFeedback) {
-    if (selectedInputs.length === 0) return alert("Please select at least one option.");
+    if (!selectedInputs.length) return alert("Please select at least one option.");
 
-    // build two normalized arrays
     const selectedNorm = selectedInputs.map(i => normalize(i.value));
-    const correctNorm = currentQ.answer.map(a => normalize(a));
-    
-    // compare lengths + every correct answer appears in selectedNorm
+    const correctNorm  = currentQ.answer.map(a => normalize(a));
+
     const isCorrect = 
       selectedNorm.length === correctNorm.length &&
       correctNorm.every(ans => selectedNorm.includes(ans));
 
-
-    optionsEl.querySelectorAll('input').forEach(input => {
+    // Disable & highlight using normalized strings
+    optionsEl.querySelectorAll('input[name="option"]').forEach(input => {
+      input.disabled = true;
       const valNorm = normalize(input.value);
       const lbl     = input.parentElement;
-      if (correctNorm.includes(valNorm))      lbl.classList.add('correct');
-      else if (input.checked && !correctNorm.includes(valNorm))
-                                             lbl.classList.add('incorrect');
+      if (correctNorm.includes(valNorm)) lbl.classList.add('correct');
+      else if (input.checked)            lbl.classList.add('incorrect');
     });
 
-    
+    resultEl.innerHTML = isCorrect
+      ? `<p style="color:green;">✅ Correct!</p>`
+      : `<p style="color:red;">❌ Incorrect.</p>
+         <p>Correct Answer:<br><strong>${currentQ.answer.join('<br>')}</strong></p>`;
 
-    // Disable all inputs
-    document.querySelectorAll("input[name='option']").forEach(input => input.disabled = true);
-
-    // Highlight correct and incorrect
-    document.querySelectorAll("input[name='option']").forEach(input => {
-      const parentLabel = input.parentElement;
-      if (correctAnswers.includes(input.value)) {
-        parentLabel.classList.add("correct");
-      }
-      if (input.checked && !correctAnswers.includes(input.value)) {
-        parentLabel.classList.add("incorrect");
-      }
-    });
-
-    // Feedback
-    if (isCorrect) {
-      score++;
-      resultEl.innerHTML = `<p style="color: green;">✅ Correct!</p>`;
-    } else {
-      resultEl.innerHTML = `<p style="color: red;">❌ Incorrect.</p>
-                            <p>Correct Answer: <strong>${correctAnswers.join(", ")}</strong></p>`;
-    }
-
-    nextBtn.textContent = currentQuestion < questions.length - 1 ? "Next Question" : "See Result";
+    if (isCorrect) score++;
     showingFeedback = true;
-
+    nextBtn.textContent = (currentQuestion < questions.length - 1)
+      ? "Next Question"
+      : "See Result";
   } else {
+    // move to next or finish
     currentQuestion++;
-    if (currentQuestion < questions.length) {
-      loadQuestion();
-    } else {
-      showResult();
-    }
+    if (currentQuestion < questions.length) loadQuestion();
+    else showResult();
   }
 });
+
 
 function formatDuration(seconds) {
   const h = Math.floor(seconds / 3600);
