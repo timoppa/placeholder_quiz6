@@ -1,6 +1,8 @@
-// quiz.js
+// script.js
 
-// ─── Question Data ─────────────────────────────────────────────────────────
+// ─── Config & Question Data ─────────────────────────────────────────────────
+const STORAGE_KEY = 'quizScoreHistory';
+
 const questions = [
   {
     question: `For this question, refer to the Helicopter Racing League (HRL) case study. Recently HRL started a new regional racing league in Cape Town, South Africa. In an effort to give customers in Cape Town a better user experience, HRL has partnered with the Content Delivery Network provider, Fastly. HRL needs to allow traffic coming from all of the Fastly IP address ranges into their Virtual Private Cloud network (VPC network). You are a member of the HRL security team and you need to configure the update that will allow only the Fastly IP address ranges through the External HTTP(S) load balancer. Which command should you use?`,
@@ -31,10 +33,9 @@ const questions = [
   }
 ];
 
-// shuffle on load
 questions.sort(() => Math.random() - 0.5);
 
-// ─── State ───────────────────────────────────────────────────────────────────
+// ─── State & DOM Refs ─────────────────────────────────────────────────────────
 let currentQuestion   = 0;
 let score             = 0;
 let showingFeedback   = false;
@@ -42,7 +43,7 @@ let totalTimeSeconds  = 90 * 60;
 let countdownInterval = null;
 let quizStartTime     = new Date();
 
-// ─── DOM References ───────────────────────────────────────────────────────────
+const quizEl       = document.getElementById('quiz');
 const questionEl   = document.getElementById('question');
 const optionsEl    = document.getElementById('options');
 const nextBtn      = document.getElementById('nextBtn');
@@ -51,10 +52,9 @@ const resultEl     = document.getElementById('result');
 const timerEl      = document.getElementById('timer');
 const progressBar  = document.getElementById('progressBar');
 const progressText = document.getElementById('progressText');
-const quizEl       = document.getElementById('quiz');
 const finalEl      = document.getElementById('finalResult');
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helper Functions ─────────────────────────────────────────────────────────
 function normalize(str) {
   return str
     .replace(/\s+/g, ' ')
@@ -67,9 +67,9 @@ function shuffleArray(arr) {
 }
 
 function formatDuration(sec) {
-  const h = Math.floor(sec / 3600),
-        m = Math.floor((sec % 3600) / 60),
-        s = sec % 60;
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
   const parts = [];
   if (h) parts.push(`${h}h`);
   if (m || h) parts.push(`${m}m`);
@@ -77,40 +77,41 @@ function formatDuration(sec) {
   return parts.join(' ');
 }
 
+// ─── History Persistence ──────────────────────────────────────────────────────
 function saveScoreToHistory(score, total) {
   const endTime = new Date();
-  const duration = Math.floor((endTime - quizStartTime) / 1000);
+  const durationSecs = Math.floor((endTime - quizStartTime) / 1000);
   const record = {
     score,
     total,
     date: endTime.toLocaleString(),
-    duration: formatDuration(duration)
+    duration: formatDuration(durationSecs)
   };
-  const hist = JSON.parse(localStorage.getItem('quizScoreHistory') || '[]');
+  const hist = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
   hist.push(record);
-  localStorage.setItem('quizScoreHistory', JSON.stringify(hist));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(hist));
 }
 
-function displayScoreHistory(containerId = 'historyContainer') {
-  const history = JSON.parse(localStorage.getItem('quizScoreHistory') || '[]');
-  const container = document.getElementById(containerId);
-  if (!container) return;
+function getScoreHistory() {
+  return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+}
+
+function renderHistory(container) {
+  const history = getScoreHistory();
   if (!history.length) {
     container.innerHTML = `<p>No past attempts yet.</p>`;
     return;
   }
-
-  const rows = history.map((item, i) => `
+  const rows = history.map((r,i) => `
     <tr>
-      <td>${i + 1}</td>
-      <td>${item.score} / ${item.total}</td>
-      <td>${item.duration}</td>
-      <td>${item.date}</td>
-    </tr>`).join('');
-
+      <td>${i+1}</td>
+      <td>${r.score} / ${r.total}</td>
+      <td>${r.duration}</td>
+      <td>${r.date}</td>
+    </tr>
+  `).join('');
   container.innerHTML = `
-    <h3>Score History</h3>
-    <table border="1" cellpadding="5" style="border-collapse:collapse; width:100%; margin-top:1em;">
+    <table border="1" cellpadding="5" cellspacing="0" style="width:100%; border-collapse:collapse; margin-top:1em;">
       <thead>
         <tr><th>#</th><th>Score</th><th>Time Taken</th><th>Date</th></tr>
       </thead>
@@ -119,7 +120,7 @@ function displayScoreHistory(containerId = 'historyContainer') {
   `;
 }
 
-// ─── Progress & Rendering ─────────────────────────────────────────────────────
+// ─── Progress & Rendering ──────────────────────────────────────────────────────
 function updateProgress() {
   const pct = (currentQuestion / questions.length) * 100;
   progressBar.style.width = pct + '%';
@@ -162,7 +163,7 @@ function loadQuestion() {
   });
 
   updateProgress();
-  finishBtn.style.display = (currentQuestion >= questions.length - 1) ? 'inline-block' : 'none';
+  finishBtn.style.display = currentQuestion >= questions.length - 1 ? 'inline-block' : 'none';
 }
 
 // ─── Timer ────────────────────────────────────────────────────────────────────
@@ -181,7 +182,7 @@ function startTimer() {
   countdownInterval = setInterval(updateTimer, 1000);
 }
 
-// ─── Submit / Feedback ───────────────────────────────────────────────────────
+// ─── Answer Submission & Feedback ─────────────────────────────────────────────
 nextBtn.addEventListener('click', () => {
   const q       = questions[currentQuestion];
   const checked = Array.from(document.querySelectorAll('input[name="option"]:checked'));
@@ -193,17 +194,18 @@ nextBtn.addEventListener('click', () => {
     const correctNorm = q.answer.map(a => normalize(a));
 
     // disable inputs
-    document.querySelectorAll('input[name="option"]').forEach(i => i.disabled = true);
+    optionsEl.querySelectorAll('input').forEach(i => i.disabled = true);
 
-    // highlight
-    document.querySelectorAll('input[name="option"]').forEach(i => {
-      const val = normalize(i.value), lbl = i.parentElement;
-      if (correctNorm.includes(val)) lbl.classList.add('correct');
+    // highlight correct / incorrect
+    optionsEl.querySelectorAll('input').forEach(i => {
+      const val = normalize(i.value),
+            lbl = i.parentElement;
+      if (correctNorm.includes(val))       lbl.classList.add('correct');
       if (i.checked && !correctNorm.includes(val)) lbl.classList.add('incorrect');
     });
 
-    const isRight = userNorm.length === correctNorm.length
-      && correctNorm.every(c => userNorm.includes(c));
+    const isRight = userNorm.length === correctNorm.length &&
+                    correctNorm.every(c => userNorm.includes(c));
 
     resultEl.innerHTML = isRight
       ? `<p style="color:green;">✅ Correct!</p>`
@@ -212,8 +214,11 @@ nextBtn.addEventListener('click', () => {
 
     if (isRight) score++;
     showingFeedback = true;
-    nextBtn.textContent = (currentQuestion < questions.length - 1) ? 'Next Question' : 'See Result';
-  } else {
+    nextBtn.textContent = (currentQuestion < questions.length - 1)
+      ? 'Next Question'
+      : 'See Result';
+  }
+  else {
     currentQuestion++;
     if (currentQuestion < questions.length) {
       loadQuestion();
@@ -223,25 +228,27 @@ nextBtn.addEventListener('click', () => {
   }
 });
 
-// ─── Finish Button → Show Results ─────────────────────────────────────────────
+// ─── Finish → Show Result & History ───────────────────────────────────────────
 finishBtn.addEventListener('click', showResult);
 
-// ─── Show Result & Restart ────────────────────────────────────────────────────
 function showResult() {
   clearInterval(countdownInterval);
   saveScoreToHistory(score, questions.length);
 
   quizEl.style.display  = 'none';
   finalEl.style.display = 'block';
-  finalEl.innerHTML     = `
+
+  finalEl.innerHTML = `
     <h2>Your Score: ${score}/${questions.length}</h2>
     <button id="restartQuizBtn">Restart Quiz</button>
+    <button id="clearHistoryBtn">Clear History</button>
     <div id="historyContainer"></div>
   `;
 
-  // now render the full history table
-  displayScoreHistory('historyContainer');
+  // render the table
+  renderHistory(document.getElementById('historyContainer'));
 
+  // wiring up restart
   document.getElementById('restartQuizBtn').addEventListener('click', () => {
     score            = 0;
     currentQuestion  = 0;
@@ -255,6 +262,13 @@ function showResult() {
     questions.sort(() => Math.random() - 0.5);
     loadQuestion();
     startTimer();
+  });
+
+  // wiring up Clear History
+  document.getElementById('clearHistoryBtn').addEventListener('click', () => {
+    if (!confirm('Clear all past attempts?')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    renderHistory(document.getElementById('historyContainer'));
   });
 }
 
