@@ -301,7 +301,11 @@ function displayScoreHistory() {
           </tr>`).join("")}
       </tbody>
     </table>
-    <button id="clearHistoryBtn" style="margin-top:10px;">Clear History</button>
+    
+    <div style="margin-top: 10px;">
+      <button id="clearHistoryBtn">Clear History</button>
+      <button id="restartFromHistoryBtn" style="margin-left: 10px;">Restart Quiz</button>
+    </div>
     <hr>
   `;
   container.insertBefore(div, document.getElementById("quiz"));
@@ -312,6 +316,32 @@ function displayScoreHistory() {
       displayScoreHistory();
     }
   });
+
+  document.getElementById('restartFromHistoryBtn').addEventListener('click', () => {
+    if (confirm("Do you want to restart the quiz?")) {
+      // Reset quiz state
+      score = 0;
+      currentQuestion = 0;
+      showingFeedback = false;
+      quizStartTime = new Date();
+  
+      // Reset timer
+      clearInterval(countdownInterval);
+      totalTimeSeconds = 90 * 60; // reset to your default duration
+      updateTimerDisplay();
+      startTimer();
+  
+      // Shuffle and reload quiz
+      questions.sort(() => Math.random() - 0.5);
+      document.getElementById("quiz").style.display = "block";
+      document.getElementById("finalResult").style.display = "none";
+      const summary = document.getElementById("summaryPage");
+      if (summary) summary.style.display = "none";
+  
+      loadQuestion();
+    }
+  });
+
 }
 
 
