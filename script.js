@@ -1,3 +1,5 @@
+// quiz.js
+
 // ─── Question Data ─────────────────────────────────────────────────────────
 const questions = [
   {
@@ -33,12 +35,12 @@ const questions = [
 questions.sort(() => Math.random() - 0.5);
 
 // ─── State ───────────────────────────────────────────────────────────────────
-let currentQuestion    = 0;
-let score              = 0;
-let showingFeedback    = false;
-let totalTimeSeconds   = 90 * 60;
-let countdownInterval  = null;
-const quizStartTime    = new Date();
+let currentQuestion   = 0;
+let score             = 0;
+let showingFeedback   = false;
+let totalTimeSeconds  = 90 * 60;
+let countdownInterval = null;
+let quizStartTime     = new Date();
 
 // ─── DOM References ───────────────────────────────────────────────────────────
 const questionEl   = document.getElementById('question');
@@ -64,13 +66,68 @@ function shuffleArray(arr) {
   return arr.sort(() => Math.random() - 0.5);
 }
 
+function formatDuration(sec) {
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  const parts = [];
+  if (h) parts.push(`${h}h`);
+  if (m || h) parts.push(`${m}m`);
+  parts.push(`${s}s`);
+  return parts.join(' ');
+}
+
+function saveScoreToHistory(score, total) {
+  const endTime = new Date();
+  const durationInSeconds = Math.floor((endTime - quizStartTime) / 1000);
+  const record = {
+    score,
+    total,
+    date: endTime.toLocaleString(),
+    duration: formatDuration(durationInSeconds)
+  };
+  const history = JSON.parse(localStorage.getItem('quizScoreHistory') || '[]');
+  history.push(record);
+  localStorage.setItem('quizScoreHistory', JSON.stringify(history));
+}
+
+function displayScoreHistory() {
+  const history = JSON.parse(localStorage.getItem('quizScoreHistory')) || [];
+  if (!history.length) return;
+
+  const rows = history.map((item, idx) => `
+    <tr>
+      <td>${idx + 1}</td>
+      <td>${item.score} / ${item.total}</td>
+      <td>${item.duration}</td>
+      <td>${item.date}</td>
+    </tr>
+  `).join('');
+
+  const historyHtml = `
+    <h3>Score History</h3>
+    <table border="1" cellpadding="5" style="border-collapse:collapse; width:100%; margin-top:1em;">
+      <thead>
+        <tr>
+          <th>#</th><th>Score</th><th>Time Taken</th><th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows}
+      </tbody>
+    </table>
+  `;
+
+  finalEl.insertAdjacentHTML('beforeend', historyHtml);
+}
+
+// ─── Progress & Rendering ─────────────────────────────────────────────────────
 function updateProgress() {
   const pct = (currentQuestion / questions.length) * 100;
   progressBar.style.width = pct + '%';
   progressText.textContent = `Question ${currentQuestion + 1} of ${questions.length}`;
 }
 
-// ─── Render a Question ───────────────────────────────────────────────────────
 function loadQuestion() {
   showingFeedback = false;
   resultEl.innerHTML = '';
@@ -111,19 +168,8 @@ function loadQuestion() {
 }
 
 // ─── Timer ────────────────────────────────────────────────────────────────────
-function formatTime(sec) {
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  const s = sec % 60;
-  const parts = [];
-  if (h) parts.push(`${h}h`);
-  if (m || h) parts.push(`${m}m`);
-  parts.push(`${s}s`);
-  return parts.join(' ');
-}
-
 function updateTimer() {
-  timerEl.textContent = `Time Remaining: ${formatTime(totalTimeSeconds)}`;
+  timerEl.textContent = `Time Remaining: ${formatDuration(totalTimeSeconds)}`;
   totalTimeSeconds--;
   if (totalTimeSeconds < 0) {
     clearInterval(countdownInterval);
@@ -148,10 +194,10 @@ nextBtn.addEventListener('click', () => {
     const userNorm    = checked.map(i => normalize(i.value));
     const correctNorm = q.answer.map(a => normalize(a));
 
-    // disable all
+    // disable inputs
     document.querySelectorAll('input[name="option"]').forEach(i => i.disabled = true);
 
-    // highlight
+    // highlight correct/incorrect
     document.querySelectorAll('input[name="option"]').forEach(i => {
       const val = normalize(i.value), lbl = i.parentElement;
       if (correctNorm.includes(val)) lbl.classList.add('correct');
@@ -164,7 +210,7 @@ nextBtn.addEventListener('click', () => {
     resultEl.innerHTML = isRight
       ? `<p style="color:green;">✅ Correct!</p>`
       : `<p style="color:red;">❌ Incorrect.</p>
-         <p>Correct Answer:<br><strong>${q.answer.join("<br>")}</strong></p>`;
+         <p>Correct Answer:<br><strong>${q.answer.join('<br>')}</strong></p>`;
 
     if (isRight) score++;
     showingFeedback = true;
@@ -181,47 +227,14 @@ nextBtn.addEventListener('click', () => {
   }
 });
 
-
-// ─── (1) Adjust displayScoreHistory to target #finalResult ────────────────
-function displayScoreHistory() {
-  const history = JSON.parse(localStorage.getItem('quizScoreHistory')) || [];
-  if (!history.length) return;
-
-  // build a table of past results
-  let rows = history.map((item, idx) => `
-    <tr>
-      <td>${idx + 1}</td>
-      <td>${item.score} / ${item.total}</td>
-      <td>${item.duration}</td>
-      <td>${item.date}</td>
-    </tr>
-  `).join('');
-
-  const historyHtml = `
-    <h3>Score History</h3>
-    <table border="1" cellpadding="5" style="border-collapse: collapse; width:100%; margin-top:1em;">
-      <thead>
-        <tr>
-          <th>#</th><th>Score</th><th>Time Taken</th><th>Date</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rows}
-      </tbody>
-    </table>
-  `;
-
-  // append it under the finalResult container
-  finalEl.insertAdjacentHTML('beforeend', historyHtml);
-}
-
+// ─── Finish Button → Show Results ─────────────────────────────────────────────
+finishBtn.addEventListener('click', showResult);
 
 // ─── Show Result & Restart ────────────────────────────────────────────────────
 function showResult() {
   clearInterval(countdownInterval);
   saveScoreToHistory(score, questions.length);
 
-  // hide quiz, show final
   quizEl.style.display  = 'none';
   finalEl.style.display = 'block';
   finalEl.innerHTML     = `
@@ -229,30 +242,25 @@ function showResult() {
     <button id="restartQuizBtn">Restart Quiz</button>
   `;
 
-  // now inject the history table below
   displayScoreHistory();
 
-
   document.getElementById('restartQuizBtn').addEventListener('click', () => {
-    // reset state
-    score             = 0;
-    currentQuestion   = 0;
-    totalTimeSeconds  = 90 * 60;
-    showingFeedback   = false;
-    quizStartTime     = new Date();
+    score            = 0;
+    currentQuestion  = 0;
+    totalTimeSeconds = 90 * 60;
+    showingFeedback  = false;
+    quizStartTime    = new Date();
 
-    // hide final, show quiz
     finalEl.style.display = 'none';
     quizEl.style.display  = 'block';
 
-    // reshuffle & restart
     questions.sort(() => Math.random() - 0.5);
     loadQuestion();
     startTimer();
   });
 }
 
-// ─── Boot up on page load ─────────────────────────────────────────────────────
+// ─── Bootstrap on DOM Ready ────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   loadQuestion();
   startTimer();
